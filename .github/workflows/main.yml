@@ -39,12 +39,12 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ghcr.io/${{ secrets.REPO_USER }}/gugudan-ai-server:latest
+          tags: ghcr.io/${{ secrets.REPO_USER }}/gugudan-server:latest
           platforms: linux/amd64,linux/arm64
 
   deploy:
     needs: build-and-push
-    runs-on: [self-hosted, gugudan-ai-server]
+    runs-on: [self-hosted, gugudan-server]
 
     steps:
       # GHCR 로그인
@@ -53,7 +53,7 @@ jobs:
 
       # 최신 이미지 pull
       - name: Pull latest image
-        run: docker pull ghcr.io/${{ secrets.REPO_USER }}/gugudan-ai-server:latest
+        run: docker pull ghcr.io/${{ secrets.REPO_USER }}/gugudan-server:latest
 
       # 기존 컨테이너 중지 및 정리
       - name: Stop old container
