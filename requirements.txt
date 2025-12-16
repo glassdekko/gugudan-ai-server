@@ -1,0 +1,16 @@
+# Web Framework
+fastapi
+uvicorn[standard]
+
+# Database
+pymysql
+sqlalchemy
+
+# Cryptography
+cryptography
+
+# Cache
+redis
+
+# Environment Variables
+python-dotenv
