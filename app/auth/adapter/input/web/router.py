@@ -142,11 +142,6 @@ async def oauth_callback(
     Validates state, exchanges code for token, creates session.
     """
 
-    # 1. 이미 세션이 있는 경우 (중복 요청이 들어온 경우)
-    if request.cookies.get("session_id"):
-        # 이미 로그인이 처리된 상태이므로, 에러를 내지 않고 홈으로 리다이렉트
-        return RedirectResponse(url=settings.FRONTEND_URL, status_code=status.HTTP_302_FOUND)
-
     # Verify state matches cookie (CSRF protection)
     cookie_state = request.cookies.get("oauth_state")
 
