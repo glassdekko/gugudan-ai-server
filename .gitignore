@@ -403,13 +403,20 @@ pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/pycharm,pycharm+iml,pycharm+all,python
 
-# Environment files
+# Environment files (contains secrets)
 .env
 .env.local
 .env.*.local
+.env.development
+.env.production
+.env.staging
+!.env.example
 
-# Docker
+# Docker (override files may contain secrets)
 docker-compose.override.yml
+docker-compose.local.yml
+docker-compose.prod.yml
+docker-compose.*.local.yml
 
 # ML Models (if applicable)
 *.safetensors
@@ -425,3 +432,9 @@ logs/
 
 # VS Code
 .vscode/
+
+# Claude Code
+.claude/
+
+# Serena
+.serena/

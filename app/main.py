@@ -9,8 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 # Load environment variables first
 load_dotenv()
 
-from app.api.v1.router import api_v1_router
-from app.infrastructure.persistence.models import AccountModel  # noqa: F401
+from app.auth.adapter.input.web.router import router as auth_router
+from app.account.infrastructure.orm.account_model import AccountModel  # noqa: F401
 from config.database.session import Base, engine
 from config.settings import settings
 
@@ -45,7 +45,7 @@ app.add_middleware(
 )
 
 # Include API routers
-app.include_router(api_v1_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
 
 
 @app.get("/health")
