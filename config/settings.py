@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = ""
 
-    # OAuth - Kakao (future)
+    # OAuth - Kakao
     KAKAO_CLIENT_ID: str = ""
     KAKAO_CLIENT_SECRET: str = ""
     KAKAO_REDIRECT_URI: str = ""
@@ -43,11 +43,41 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = False  # Set True in production (HTTPS)
     COOKIE_SAMESITE: str = "lax"
 
-    # Session
+    # JWT Settings
+    JWT_SECRET_KEY: str = ""  # Secret key for JWT signing
+    JWT_ENCRYPTION_KEY: str = ""  # Key for AES encryption of user-specific keys
+    JWT_EXPIRY_HOURS: int = 12  # Token validity period in hours
+    JWT_HTTPONLY: bool = True  # HttpOnly flag for JWT cookie
+
+    # Environment
+    ENVIRONMENT: str = "local"  # local, staging, production
+
+    # Session (legacy - kept for backward compatibility)
     SESSION_TTL_SECONDS: int = 86400  # 24 hours
 
     # Frontend URL for redirects after OAuth
     FRONTEND_URL: str
+
+    @property
+    def is_production(self) -> bool:
+        """Check if running in production environment."""
+        return self.ENVIRONMENT.lower() == "production"
+
+    @property
+    def is_local(self) -> bool:
+        """Check if running in local development environment."""
+        return self.ENVIRONMENT.lower() == "local"
+
+    @property
+    def effective_cookie_secure(self) -> bool:
+        """Get effective cookie secure setting based on environment.
+
+        Local environment: False (allows HTTP)
+        Production environment: True (requires HTTPS)
+        """
+        if self.is_local:
+            return False
+        return self.COOKIE_SECURE or self.is_production
 
     class Config:
         env_file = ".env"

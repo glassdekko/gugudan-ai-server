@@ -5,6 +5,7 @@ from typing import Dict, Type
 from app.auth.application.port.oauth_provider_port import OAuthProviderPort
 from app.common.domain.exceptions import UnsupportedOAuthProviderException
 from app.auth.infrastructure.oauth.google import GoogleOAuthProvider
+from app.auth.infrastructure.oauth.kakao import KakaoOAuthProvider
 from app.auth.infrastructure.oauth.naver import NaverOAuthProvider
 
 
@@ -17,9 +18,8 @@ class OAuthProviderFactory:
     # Provider registry: name -> provider class
     _providers: Dict[str, Type[OAuthProviderPort]] = {
         "google": GoogleOAuthProvider,
+        "kakao": KakaoOAuthProvider,
         "naver": NaverOAuthProvider,
-        # Future providers:
-        # "kakao": KakaoOAuthProvider,
     }
 
     @classmethod
