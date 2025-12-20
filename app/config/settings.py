@@ -80,7 +80,7 @@ class Settings(BaseSettings):
         return self.COOKIE_SECURE or self.is_production
 
     class Config:
-        env_file = ".env"
+        env_file = ".env.example"
         case_sensitive = True
         extra = "ignore"  # Ignore extra env vars like MYSQL_ROOT_PASSWORD
 

@@ -1,0 +1,2 @@
+class ChatMessageDomainException(Exception):
+    pass

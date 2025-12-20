@@ -14,9 +14,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 환경파일 생성 (.env)
-      - name: Create .env file
-        run: echo "${{ secrets.BACKEND_ENV }}" > .env
+      # 환경파일 생성 (.env.example)
+      - name: Create .env.example file
+        run: echo "${{ secrets.BACKEND_ENV }}" > .env.example
 
       # QEMU 설정 (멀티 아키텍처)
       - uses: docker/setup-qemu-action@v2
