@@ -1,21 +1,19 @@
-import os  # IV 생성을 위해 필요
 from typing import AsyncIterator
-
 from app.conversation.application.port.out.chat_message_repository_port import ChatMessageRepositoryPort
 from app.conversation.application.port.out.chat_room_repository_port import ChatRoomRepositoryPort
-from app.conversation.application.port.out.llm_chat_port import LlmChatPort
+from app.config.call_gpt import CallGPT
 from app.conversation.application.port.out.usage_meter_port import UsageMeterPort
-# 암호화 서비스를 가져옵니다 (경로는 프로젝트 구조에 맞게 조정하세요)
-from app.conversation.infrastructure.crypto.message_content_encryptor import MessageContentEncryptor
+from app.config.security.message_crypto import AESEncryption
+
 
 class StreamChatUsecase:
     def __init__(
-        self,
-        chat_room_repo: ChatRoomRepositoryPort,
-        chat_message_repo: ChatMessageRepositoryPort,
-        llm_chat_port: LlmChatPort,
-        usage_meter: UsageMeterPort,
-        crypto_service: MessageContentEncryptor, # 1. 암호화 서비스 주입
+            self,
+            chat_room_repo: ChatRoomRepositoryPort,
+            chat_message_repo: ChatMessageRepositoryPort,
+            llm_chat_port: CallGPT,
+            usage_meter: UsageMeterPort,
+            crypto_service: AESEncryption,
     ):
         self.chat_room_repo = chat_room_repo
         self.chat_message_repo = chat_message_repo
@@ -24,54 +22,63 @@ class StreamChatUsecase:
         self.crypto_service = crypto_service
 
     async def execute(
-        self,
-        room_id: str,
-        account_id: int,
-        message: str,
-        contents_type: str,
+            self,
+            room_id: str,
+            account_id: int,
+            message: str,
+            contents_type: str,
     ) -> AsyncIterator[bytes]:
 
-        # 1️⃣ 사용 가능 여부 체크
         await self.usage_meter.check_available(account_id)
 
-        # 2️⃣ USER 메시지 암호화 및 저장
-        # 16바이트 랜덤 IV 생성
-        user_iv = os.urandom(16) 
-        # 실제 암호화 수행
-        user_encrypted = self.crypto_service.encrypt(message, iv=user_iv)
+        previous_chat_messages = await self.chat_message_repo.find_by_room_id(room_id)
 
+        full_prompt = (
+            "당신은 연애, 커플, 이혼 등 관계에서 발생하는 감정과 대화 문제를 함께 나누는 따뜻한 대화 동반자입니다. "
+            "사용자를 진단하거나 분석하려 하지 마세요. 사용자가 스스로 생각을 정리할 수 있도록 경청하고 공감하며 대화를 이어가세요.\n\n"
+        )
+
+        for m in previous_chat_messages:
+            try:
+                decrypted_txt = self.crypto_service.decrypt(
+                    ciphertext=m.content_enc,
+                    iv=m.iv if (m.iv and len(m.iv) == 16) else None
+                )
+                # 역할을 라벨링하여 문자열로 병합
+                role_label = "상담사" if m.role.lower() == "assistant" else "사용자"
+                full_prompt += f"{role_label}: {decrypted_txt}\n"
+            except Exception as e:
+                print(f"이전 메시지 복호화 실패 (ID: {getattr(m, 'id', 'unknown')}): {e}")
+                continue
+
+        user_encrypted, user_iv = self.crypto_service.encrypt(message)
         await self.chat_message_repo.save_user_message(
             room_id=room_id,
             account_id=account_id,
-            content_enc=user_encrypted, # 암호화된 데이터
-            iv=user_iv,                 # 생성된 16바이트 IV
-            enc_version=1,
+            content_enc=user_encrypted,
+            iv=user_iv,
+            enc_version=self.crypto_service.get_version(),
             contents_type=contents_type,
         )
 
-        # 3️⃣ LLM 요청
-        messages = [{"role": "user", "content": message}]
+        full_prompt += f"사용자: {message}\n상담사: "
+
         assistant_full_message = ""
 
-        async for chunk in self.llm_chat_port.stream_chat(messages):
+        async for chunk in self.llm_chat_port.call_gpt(full_prompt):
             assistant_full_message += chunk
             yield chunk.encode("utf-8")
 
-        # 4️⃣ ASSISTANT 메시지 암호화 및 저장
-        # 어시스턴트용 별도의 16바이트 랜덤 IV 생성
-        assistant_iv = os.urandom(16)
-        assistant_encrypted = self.crypto_service.encrypt(assistant_full_message, iv=assistant_iv)
-
+        assistant_encrypted, assistant_iv = self.crypto_service.encrypt(assistant_full_message)
         await self.chat_message_repo.save_assistant_message(
             room_id=room_id,
             account_id=account_id,
-            content_enc=assistant_encrypted, # 암호화된 데이터
-            iv=assistant_iv,                 # 생성된 16바이트 IV
-            enc_version=1,
+            content_enc=assistant_encrypted,
+            iv=assistant_iv,
+            enc_version=self.crypto_service.get_version(),
             contents_type=contents_type,
         )
 
-        # 5️⃣ 사용량 기록
         await self.usage_meter.record_usage(
             account_id,
             len(message),

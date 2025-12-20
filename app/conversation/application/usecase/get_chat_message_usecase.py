@@ -1,42 +1,52 @@
-# app/conversation/application/usecase/get_chat_message_usecase.py
 from app.conversation.infrastructure.repository.chat_message_repository_impl import ChatMessageRepositoryImpl
-from app.conversation.infrastructure.crypto.message_content_encryptor import MessageContentEncryptor, EncryptedPayload
+from app.config.security.message_crypto import AESEncryption
+
 
 class GetChatMessagesUseCase:
-    def __init__(self, chat_message_repo: ChatMessageRepositoryImpl, crypto_service: MessageContentEncryptor):
+    def __init__(self, chat_message_repo: ChatMessageRepositoryImpl, crypto_service: AESEncryption):
         self.chat_message_repo = chat_message_repo
         self.crypto_service = crypto_service
 
     async def execute(self, room_id: str):
+        """
+        채팅방의 메시지를 조회하고 복호화하여 반환합니다.
+        """
+        # 1. DB에서 해당 방의 모든 메시지 조회
         messages = await self.chat_message_repo.find_by_room_id(room_id)
         decrypted = []
 
         for m in messages:
-            # 1. IV나 암호화된 내용이 없는 경우를 대비한 처리
-            if not m.iv or len(m.iv) != 16:
-                # IV가 없으면 암호화되지 않은 일반 텍스트로 간주하거나 기본값 처리
-                content = m.content_enc if m.content_enc else ""
-                # 혹은 로그를 남겨 어떤 데이터가 문제인지 확인
-                print(f"Warning: Invalid IV for message {m.id}. IV: {m.iv}")
-            else:
-                payload = EncryptedPayload(
-                    ciphertext=m.content_enc,
-                    iv=m.iv,
-                    version=m.enc_version,
-                )
-                try:
-                    content = self.crypto_service.decrypt(payload, iv=payload.iv)
-                except Exception as e:
-                    print(f"Decryption failed for message {m.id}: {e}")
-                    content = "[Decryption Error]"
+            content_text = ""
 
+            # ORM 객체(m)에서 직접 컬럼에 접근 (getattr를 활용해 안전하게 추출)
+            # m.content_enc, m.iv, m.message_id 등의 필드명을 가정합니다.
+            content_enc = getattr(m, 'content_enc', None)
+            iv = getattr(m, 'iv', None)
+
+            # 2. 메시지 복호화 로직
+            if not content_enc:
+                content_text = ""
+            else:
+                try:
+                    target_iv = iv if (iv and len(iv) == 16) else None
+                    content_text = self.crypto_service.decrypt(
+                        ciphertext=content_enc,
+                        iv=target_iv
+                    )
+                except Exception as e:
+                    msg_id = getattr(m, 'message_id', getattr(m, 'id', 'unknown'))
+                    print(f"복호화 에러 (ID: {msg_id}): {e}")
+                    content_text = "[복호화 오류]"
+
+            # 3. 반환 데이터 조립
             decrypted.append({
-                "id": m.id,
+                "message_id": getattr(m, 'message_id', getattr(m, 'id', None)),
                 "room_id": m.room_id,
                 "account_id": m.account_id,
-                "role": m.role,
-                "content": content,
-                "contents_type": m.contents_type,
+                "role": m.role.value if hasattr(m.role, 'value') else str(m.role),
+                "content": content_text,
+                "contents_type": getattr(m, 'contents_type', getattr(m, 'content_type', 'TEXT')),
                 "created_at": m.created_at,
             })
+
         return decrypted
