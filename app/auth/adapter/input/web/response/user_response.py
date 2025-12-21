@@ -22,6 +22,8 @@ class UserResponse(BaseModel):
     plan_started_at: Optional[datetime] = None
     plan_ends_at: Optional[datetime] = None
     status: str
+    gender: Optional[str] = None
+    mbti: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -39,5 +41,7 @@ class UserResponse(BaseModel):
             plan=account.plan.value,
             plan_started_at=account.plan_started_at,
             plan_ends_at=account.plan_ends_at,
+            gender=account.gender.value if account.gender else None,
+            mbti=account.mbti.value if account.mbti else None,
             status=account.status.value,
         )
