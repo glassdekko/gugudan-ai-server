@@ -23,7 +23,10 @@ class ChatRoomRepositoryImpl(ChatRoomRepositoryPort):
         self.db.close()
 
     async def find_by_id(self, room_id):
-        return self.db.get(ChatRoomOrm, room_id)
+        try:
+            return self.db.get(ChatRoomOrm, room_id)
+        finally:
+            self.db.close()
 
     async def end_room(self, room_id):
         room = await self.db.get(ChatRoomOrm, room_id)
