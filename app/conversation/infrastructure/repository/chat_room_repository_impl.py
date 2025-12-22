@@ -20,30 +20,22 @@ class ChatRoomRepositoryImpl(ChatRoomRepositoryPort):
         )
         self.db.add(room)
         self.db.commit()
-        self.db.close()
 
     async def find_by_id(self, room_id):
-        try:
-            return self.db.get(ChatRoomOrm, room_id)
-        finally:
-            self.db.close()
+        return self.db.get(ChatRoomOrm, room_id)
 
     async def end_room(self, room_id):
         room = await self.db.get(ChatRoomOrm, room_id)
         room.status = "ENDED"
         self.db.commit()
-        self.db.close()
 
     async def find_by_account_id(self, account_id: int):
-        try:
-            return (
-                self.db.query(ChatRoomOrm)
-                .filter(ChatRoomOrm.account_id == account_id)
-                .order_by(ChatRoomOrm.created_at.desc())
-                .all()
-            )
-        finally:
-            self.db.close()
+        return (
+            self.db.query(ChatRoomOrm)
+            .filter(ChatRoomOrm.account_id == account_id)
+            .order_by(ChatRoomOrm.created_at.desc())
+            .all()
+        )
 
     async def delete_by_room_id(self, room_id: str) -> bool:
         try:
@@ -61,5 +53,3 @@ class ChatRoomRepositoryImpl(ChatRoomRepositoryPort):
         except Exception as e:
             self.db.rollback()
             raise e
-        finally:
-            self.db.close()
